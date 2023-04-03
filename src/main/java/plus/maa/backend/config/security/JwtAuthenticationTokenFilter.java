@@ -1,4 +1,4 @@
-package plus.maa.backend.filter;
+package plus.maa.backend.config.security;
 
 import cn.hutool.core.date.DateTime;
 import cn.hutool.jwt.JWT;
@@ -8,10 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,7 +18,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import plus.maa.backend.config.external.MaaCopilotProperties;
-import plus.maa.backend.repository.RedisCache;
+import plus.maa.backend.service.UserSessionService;
 import plus.maa.backend.service.model.LoginUser;
 
 import java.io.IOException;
@@ -30,12 +27,18 @@ import java.util.Objects;
 /**
  * @author AnselYuki
  */
-@Setter
 @Component
-@RequiredArgsConstructor
 public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
-    private final RedisCache redisCache;
+    public JwtAuthenticationTokenFilter(AuthenticationHelper helper, MaaCopilotProperties properties, UserSessionService userSessionService) {
+        this.helper = helper;
+        this.properties = properties;
+        this.userSessionService = userSessionService;
+    }
+
+    private final AuthenticationHelper helper;
     private final MaaCopilotProperties properties;
+
+    private final UserSessionService userSessionService;
 
     @Override
     protected void doFilterInternal(@NotNull HttpServletRequest request, @NotNull HttpServletResponse response, @NotNull FilterChain filterChain) throws IOException, ServletException {
@@ -44,7 +47,7 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
             var jwt = parseAndValidateJwt(token);
             var user = retrieveAndValidateUser(jwt);
             var authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            helper.setAuthentication(authentication);
         } catch (AuthenticationException ex) {
             logger.trace(ex.getMessage());
         } catch (Exception ignored) {
@@ -76,8 +79,7 @@ public class JwtAuthenticationTokenFilter extends OncePerRequestFilter {
 
     @NotNull
     private LoginUser retrieveAndValidateUser(JWT jwt) throws AuthenticationException {
-        var redisKey = "LOGIN:" + jwt.getPayload("userId");
-        var user = redisCache.getCache(redisKey, LoginUser.class);
+        var user = userSessionService.getUser(jwt.getPayload("userId").toString());
         if (user == null) throw new UsernameNotFoundException("user not found");
         var jwtToken = jwt.getPayload("token").toString();
         if (!Objects.equals(user.getToken(), jwtToken)) throw new BadCredentialsException("invalid token");
