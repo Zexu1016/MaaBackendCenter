@@ -1,17 +1,18 @@
 package plus.maa.backend.service;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
-import lombok.RequiredArgsConstructor;
 import plus.maa.backend.repository.UserRepository;
 import plus.maa.backend.repository.entity.MaaUser;
 import plus.maa.backend.service.model.LoginUser;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.Collection;
 
 /**
  * @author AnselYuki
@@ -35,16 +36,16 @@ public class UserDetailServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("用户不存在");
         }
 
-        var permissions = collectPermissionsFor(user);
+        var permissions = collectAuthoritiesFor(user);
         //数据封装成UserDetails返回
         return new LoginUser(user, permissions);
     }
 
-    public Set<String> collectPermissionsFor(MaaUser user) {
-        var permissions = new HashSet<String>();
+    public Collection<? extends GrantedAuthority> collectAuthoritiesFor(MaaUser user) {
+        var authorities = new ArrayList<GrantedAuthority>();
         for (int i = 0; i <= user.getStatus(); i++) {
-            permissions.add(Integer.toString(i));
+            authorities.add(new SimpleGrantedAuthority(Integer.toString(i)));
         }
-        return permissions;
+        return authorities;
     }
 }

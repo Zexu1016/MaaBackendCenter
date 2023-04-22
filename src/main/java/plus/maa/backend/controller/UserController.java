@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.Data;
@@ -16,10 +15,10 @@ import org.springframework.web.bind.annotation.*;
 import plus.maa.backend.config.SpringDocConfig;
 import plus.maa.backend.config.external.MaaCopilotProperties;
 import plus.maa.backend.config.security.AuthenticationHelper;
-import plus.maa.backend.controller.request.*;
-import plus.maa.backend.controller.response.MaaLoginRsp;
+import plus.maa.backend.controller.request.user.*;
+import plus.maa.backend.controller.response.user.MaaLoginRsp;
 import plus.maa.backend.controller.response.MaaResult;
-import plus.maa.backend.controller.response.MaaUserInfo;
+import plus.maa.backend.controller.response.user.MaaUserInfo;
 import plus.maa.backend.service.EmailService;
 import plus.maa.backend.service.UserService;
 
@@ -42,6 +41,7 @@ public class UserController {
     private final UserService userService;
     private final EmailService emailService;
     private final MaaCopilotProperties properties;
+    private final AuthenticationHelper helper;
     @Value("${maa-copilot.jwt.header}")
     private String header;
 
@@ -56,7 +56,6 @@ public class UserController {
     @SecurityRequirement(name = SpringDocConfig.SECURITY_SCHEME_NAME)
     @PostMapping("/activate")
     public MaaResult<Void> activate(
-            @Parameter(hidden = true) AuthenticationHelper helper,
             @Parameter(description = "激活用户请求") @Valid @RequestBody ActivateDTO activateDTO
     ) {
         // FIXME 应改为从 body 中获取， 解决激活——登录悖论，待讨论
@@ -74,7 +73,7 @@ public class UserController {
     @ApiResponse(description = "激活码发送结果")
     @SecurityRequirement(name = SpringDocConfig.SECURITY_SCHEME_NAME)
     @PostMapping("/activate/request")
-    public MaaResult<Void> activateRequest(@Parameter(hidden = true) AuthenticationHelper helper) {
+    public MaaResult<Void> activateRequest() {
         // FIXME 完成注册后发送激活码不应该由客户端请求
         userService.sendActiveCodeByEmail(helper.requireUserId());
         return MaaResult.success();
@@ -90,7 +89,6 @@ public class UserController {
     @SecurityRequirement(name = SpringDocConfig.SECURITY_SCHEME_NAME)
     @PostMapping("/update/password")
     public MaaResult<Void> updatePassword(
-            @Parameter(hidden = true) AuthenticationHelper helper,
             @Parameter(description = "修改密码请求") @RequestBody @Valid PasswordUpdateDTO updateDTO
     ) {
         userService.modifyPassword(helper.requireUserId(), updateDTO.getNewPassword());
@@ -108,7 +106,6 @@ public class UserController {
     @SecurityRequirement(name = SpringDocConfig.SECURITY_SCHEME_NAME)
     @PostMapping("/update/info")
     public MaaResult<Void> updateInfo(
-            @Parameter(hidden = true) AuthenticationHelper helper,
             @Parameter(description = "更新用户详细信息请求") @Valid @RequestBody UserInfoUpdateDTO updateDTO
     ) {
         userService.updateUserInfo(helper.requireUserId(), updateDTO);
@@ -156,10 +153,9 @@ public class UserController {
     @PostMapping("/refresh")
     @Operation(summary = "刷新token")
     @ApiResponse(description = "刷新token结果")
-    public MaaResult<Void> refresh(@Parameter(description = "刷新token请求") HttpServletRequest request) {
-        String token = request.getHeader(header);
-        userService.refreshToken(token);
-        return MaaResult.success();
+    public MaaResult<MaaLoginRsp> refresh(@Parameter(description = "刷新token请求") @RequestBody RefreshReq request) {
+        var res = userService.refreshToken(request.getRefreshToken());
+        return MaaResult.success(res);
     }
 
     /**

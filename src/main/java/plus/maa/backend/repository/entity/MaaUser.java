@@ -9,9 +9,11 @@ import lombok.experimental.Accessors;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
-import plus.maa.backend.controller.request.UserInfoUpdateDTO;
+import plus.maa.backend.controller.request.user.UserInfoUpdateDTO;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @author AnselYuki
@@ -31,6 +33,7 @@ public class MaaUser implements Serializable {
     private String email;
     private String password;
     private Integer status = 0;
+    private List<String> refreshJwtIds = new ArrayList<>();
 
     public void updateAttribute(UserInfoUpdateDTO updateDTO) {
         String userName = updateDTO.getUserName();
